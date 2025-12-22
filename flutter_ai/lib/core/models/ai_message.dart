@@ -1,5 +1,7 @@
 // ignore_for_file: unused_element
 
+import 'ai_tool.dart';
+
 /// Represents the role of the entity creating the message.
 enum AiMessageRole {
   /// A system message that sets the context or instructions for the model.
@@ -21,6 +23,14 @@ enum AiMessageRole {
 /// text, images, videos, etc.
 abstract class AiContentPart {
   const AiContentPart();
+}
+
+/// A content part that represents a request from the model to call one or more tools.
+class AiToolCallContent extends AiContentPart {
+  /// The list of tool calls requested by the model.
+  final List<AiToolCall> toolCalls;
+
+  const AiToolCallContent(this.toolCalls);
 }
 
 /// A content part that contains plain text.

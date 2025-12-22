@@ -9,6 +9,7 @@ import 'models/responses_response.dart';
 import 'package:flutter_ai/core/ai_provider.dart';
 import 'package:flutter_ai/core/models/ai_message.dart';
 import 'package:flutter_ai/core/models/ai_response.dart';
+import 'package:flutter_ai/core/models/ai_tool.dart';
 
 /// A client for interacting with the OpenAI API.
 class OpenAIClient implements AiProvider {
@@ -127,15 +128,42 @@ class OpenAIClient implements AiProvider {
       model: options['model'] ?? 'gpt-3.5-turbo',
       messages: messages,
       temperature: options['temperature'],
+      tools: options['tools'] as List<AiTool>?,
+      toolChoice: options['tool_choice'],
     );
+
     final response = await createChatCompletion(request);
     final choice = response.choices.first;
-    return AiChatResponse(
-      id: response.id,
-      model: response.model,
-      message: AiMessage.assistant(choice.message['content'] ?? ''),
-      reasoning: choice.reasoningContent,
-    );
+    final message = choice.message;
+
+    // Check for tool calls in the response.
+    if (message['tool_calls'] != null) {
+      final toolCalls = (message['tool_calls'] as List).map((tc) {
+        return AiToolCall(
+          id: tc['id'],
+          name: tc['function']['name'],
+          arguments: json.decode(tc['function']['arguments']),
+        );
+      }).toList();
+
+      return AiChatResponse(
+        id: response.id,
+        model: response.model,
+        message: AiMessage(
+          role: AiMessageRole.assistant,
+          parts: [AiToolCallContent(toolCalls)],
+        ),
+        reasoning: choice.reasoningContent,
+      );
+    } else {
+      // Default behavior: handle text content.
+      return AiChatResponse(
+        id: response.id,
+        model: response.model,
+        message: AiMessage.assistant(message['content'] ?? ''),
+        reasoning: choice.reasoningContent,
+      );
+    }
   }
 
   @override
