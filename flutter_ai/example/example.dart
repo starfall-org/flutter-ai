@@ -6,6 +6,7 @@ import 'package:flutter_ai/flutter_ai.dart';
 ///
 /// To run the Anthropic example, you must set an environment variable:
 /// `ANTHROPIC_API_KEY="your-api-key" dart run example/example.dart`
+/// `GOOGLE_API_KEY="your-api-key" dart run example/example.dart`
 void main() async {
   print('--- Running Flutter AI Examples ---');
 
@@ -13,6 +14,7 @@ void main() async {
   await _runOllamaStreamExample();
   await _runMcpExample();
   await _runAnthropicExample();
+  await _runGoogleAIExample();
 
   print('\n--- Examples Finished ---');
 }
@@ -110,5 +112,37 @@ Future<void> _runAnthropicExample() async {
     }
   } catch (e) {
     print('Anthropic Example Failed: $e');
+  }
+}
+
+/// Example 5: Google AI Chat Completion
+/// This function demonstrates a call to the official Google AI API.
+/// It requires the GOOGLE_API_KEY environment variable to be set.
+Future<void> _runGoogleAIExample() async {
+  print('\n--- Example 5: Google AI Chat Completion ---');
+  final apiKey = Platform.environment['GOOGLE_API_KEY'];
+
+  if (apiKey == null || apiKey.isEmpty) {
+    print('Skipping Google AI example: GOOGLE_API_KEY is not set.');
+    return;
+  }
+
+  final googleClient = GoogleAIClient(apiKey: apiKey);
+  final client = FlutterAiClient(provider: googleClient);
+
+  final messages = [
+    AiMessage.user('Hello, what is your name?'),
+  ];
+
+  try {
+    final response = await client.chat(
+      messages,
+      // Note: This model name might fail depending on the API key's permissions.
+      options: {'model': 'gemini-1.5-flash-preview-0514'},
+    );
+    final textResponse = response.message.parts.whereType<AiTextContent>().map((p) => p.text).join();
+    print('AI Response: $textResponse');
+  } catch (e) {
+    print('Google AI Example Failed: $e');
   }
 }
