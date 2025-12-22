@@ -9,6 +9,9 @@ class OpenAIChatChoice {
   factory OpenAIChatChoice.fromJson(Map<String, dynamic> json) {
     return OpenAIChatChoice(index: json['index'], message: json['message'], finishReason: json['finish_reason']);
   }
+
+  /// Helper to get reasoning content from the message.
+  String? get reasoningContent => message['reasoning_content'];
 }
 
 /// Represents the full response from the OpenAI Chat Completions API.
@@ -64,4 +67,7 @@ class OpenAIChatStreamChoice {
   factory OpenAIChatStreamChoice.fromJson(Map<String, dynamic> json) {
     return OpenAIChatStreamChoice(index: json['index'], delta: json['delta'], finishReason: json['finish_reason']);
   }
+
+  /// Helper to get reasoning content from the delta.
+  String? get reasoningContent => delta['reasoning_content'];
 }

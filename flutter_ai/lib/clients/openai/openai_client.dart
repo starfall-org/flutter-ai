@@ -134,6 +134,7 @@ class OpenAIClient implements AiProvider {
       id: response.id,
       model: response.model,
       message: AiMessage.assistant(choice.message['content'] ?? ''),
+      reasoning: choice.reasoningContent,
     );
   }
 
@@ -146,9 +147,11 @@ class OpenAIClient implements AiProvider {
       stream: true,
     );
     return createChatCompletionStream(request).map((chunk) {
+      final choice = chunk.choices.first;
       return AiChatResponseChunk(
         model: chunk.model,
-        content: chunk.choices.first.delta['content'],
+        content: choice.delta['content'],
+        reasoning: choice.reasoningContent,
       );
     });
   }

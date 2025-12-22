@@ -27,6 +27,9 @@ Future<void> _runOpenAIExample() async {
     final response = await client.chat(messages, options: {'model': 'gpt-3.5-turbo'});
     final textResponse = response.message.parts.whereType<AiTextContent>().map((p) => p.text).join();
     print('AI Response: $textResponse');
+    if (response.reasoning != null) {
+      print('AI Reasoning: ${response.reasoning}');
+    }
   } catch (e) {
     print('OpenAI Example Failed: $e');
   }
