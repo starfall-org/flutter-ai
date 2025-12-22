@@ -1,13 +1,18 @@
 import 'dart:io';
 import 'package:flutter_ai/flutter_ai.dart';
 
-/// To run this file: `dart run example/example.dart`
+/// To run this file:
+/// `dart run example/example.dart`
+///
+/// To run the Anthropic example, you must set an environment variable:
+/// `ANTHROPIC_API_KEY="your-api-key" dart run example/example.dart`
 void main() async {
   print('--- Running Flutter AI Examples ---');
 
   await _runOpenAIExample();
   await _runOllamaStreamExample();
   await _runMcpExample();
+  await _runAnthropicExample();
 
   print('\n--- Examples Finished ---');
 }
@@ -70,5 +75,40 @@ Future<void> _runMcpExample() async {
     }
   } catch (e) {
     print('MCP Example Failed: $e');
+  }
+}
+
+/// Example 4: Anthropic Chat Completion
+/// This function demonstrates a call to the official Anthropic API.
+/// It requires the ANTHROPIC_API_KEY environment variable to be set.
+Future<void> _runAnthropicExample() async {
+  print('\n--- Example 4: Anthropic Chat Completion ---');
+  final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
+
+  if (apiKey == null || apiKey.isEmpty) {
+    print('Skipping Anthropic example: ANTHROPIC_API_KEY is not set.');
+    return;
+  }
+
+  final anthropicClient = AnthropicClient(apiKey: apiKey);
+  final client = FlutterAiClient(provider: anthropicClient);
+
+  final messages = [
+    AiMessage.user('Hello, what is your name?'),
+  ];
+
+  try {
+    final response = await client.chat(
+      messages,
+      options: {'model': 'claude-haiku-4-5-20251001'},
+    );
+    final textResponse = response.message.parts.whereType<AiTextContent>().map((p) => p.text).join();
+    print('AI Response: $textResponse');
+    // Note: As verified, reasoning is not expected from Anthropic's standard response.
+    if (response.reasoning != null) {
+      print('AI Reasoning: ${response.reasoning}');
+    }
+  } catch (e) {
+    print('Anthropic Example Failed: $e');
   }
 }
