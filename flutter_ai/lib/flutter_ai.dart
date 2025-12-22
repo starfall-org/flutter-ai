@@ -10,4 +10,4 @@ export 'clients/openai/openai_client.dart';
 export 'clients/anthropic/anthropic_client.dart';
 export 'clients/google/google_ai_client.dart';
 export 'clients/ollama/ollama_client.dart';
-export 'mcp/mcp_client.dart';
+export 'clients/mcp_client.dart';

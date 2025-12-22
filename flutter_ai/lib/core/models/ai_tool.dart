@@ -1,24 +1,3 @@
-/// A standardized representation of a tool that an AI model can call.
-class AiTool {
-  /// The name of the function to be called.
-  ///
-  /// Must be a-z, A-Z, 0-9, or contain underscores and dashes, with a maximum
-  /// length of 64.
-  final String name;
-
-  /// A description of what the function does, used by the model to decide when
-  /// and how to call the function.
-  final String description;
-
-  /// The parameters the functions accepts, described as a JSON Schema object.
-  final Map<String, dynamic> parameters;
-
-  const AiTool({
-    required this.name,
-    required this.description,
-    required this.parameters,
-  });
-}
 
 /// Represents a request from the model to call a specific tool.
 class AiToolCall {
@@ -33,7 +12,7 @@ class AiToolCall {
   /// Note: The model does not always generate valid JSON, and may hallucinate
   /// parameters not defined in your function schema. Validate the arguments
   /// in your code before calling your function.
-  final Map<String, dynamic> arguments;
+  final String arguments;
 
   const AiToolCall({
     required this.id,

@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -10,6 +11,7 @@ import 'package:flutter_ai/core/ai_provider.dart';
 import 'package:flutter_ai/core/models/ai_message.dart';
 import 'package:flutter_ai/core/models/ai_response.dart';
 import 'package:flutter_ai/core/models/ai_tool.dart';
+import 'package:flutter_ai/core/models/tool.dart';
 
 /// A client for interacting with the OpenAI API.
 class OpenAIClient implements AiProvider {
@@ -124,11 +126,13 @@ class OpenAIClient implements AiProvider {
 
   @override
   Future<AiChatResponse> createChat(List<AiMessage> messages, {Map<String, dynamic> options = const {}}) async {
+    final List<AiTool>? tools = options['tools'] as List<AiTool>?;
+
     final request = OpenAIChatRequest(
       model: options['model'] ?? 'gpt-3.5-turbo',
       messages: messages,
       temperature: options['temperature'],
-      tools: options['tools'] as List<AiTool>?,
+      tools: tools,
       toolChoice: options['tool_choice'],
     );
 
@@ -136,13 +140,13 @@ class OpenAIClient implements AiProvider {
     final choice = response.choices.first;
     final message = choice.message;
 
-    // Check for tool calls in the response.
-    if (message['tool_calls'] != null) {
-      final toolCalls = (message['tool_calls'] as List).map((tc) {
+    final rawToolCalls = message['tool_calls'] as List?;
+    if (rawToolCalls != null && rawToolCalls.isNotEmpty) {
+      final toolCalls = rawToolCalls.map((tc) {
         return AiToolCall(
           id: tc['id'],
           name: tc['function']['name'],
-          arguments: json.decode(tc['function']['arguments']),
+          arguments: tc['function']['arguments'],
         );
       }).toList();
 
@@ -156,7 +160,6 @@ class OpenAIClient implements AiProvider {
         reasoning: choice.reasoningContent,
       );
     } else {
-      // Default behavior: handle text content.
       return AiChatResponse(
         id: response.id,
         model: response.model,
@@ -178,7 +181,7 @@ class OpenAIClient implements AiProvider {
       final choice = chunk.choices.first;
       return AiChatResponseChunk(
         model: chunk.model,
-        content: choice.delta['content'],
+        content: choice.delta.content,
         reasoning: choice.reasoningContent,
       );
     });

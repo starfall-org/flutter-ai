@@ -1,143 +1,125 @@
-import 'dart:io';
-import 'package:flutter_ai/flutter_ai.dart';
 
-// To run this file:
-// `dart run example/example.dart`
-//
-// To run the Anthropic/Google AI examples, you must set environment variables.
+import 'package:flutter_ai/clients/anthropic/anthropic_client.dart';
+import 'package:flutter_ai/clients/google/google_ai_client.dart';
+import 'package:flutter_ai/clients/mcp_client.dart';
+import 'package:flutter_ai/clients/openai/openai_client.dart';
+import 'package:flutter_ai/core/models/ai_message.dart';
+import 'package:flutter_ai/core/models/ai_response.dart';
+import 'package:flutter_ai/core/models/ai_tool.dart';
+import 'package:flutter_ai/core/models/tool.dart';
+import 'dart:io' show Platform;
+
 void main() async {
-  print('--- Running Flutter AI Examples ---');
-
+  print('--- Running OpenAI Example ---');
   await _runOpenAIExample();
-  await _runOllamaStreamExample();
-  // We will skip the direct MCP example as the test server is problematic.
-  // await _runMcpExample();
+  print('\n--- Running Anthropic Example ---');
   await _runAnthropicExample();
+  print('\n--- Running Google AI Example ---');
   await _runGoogleAIExample();
-  await _runToolCallExample();
-
-  print('\n--- Examples Finished ---');
 }
 
 Future<void> _runOpenAIExample() async {
-  print('\n--- Example 1: OpenAI Chat Completion ---');
-  final openAiClient = OpenAIClient(
-    baseUrl: 'https://oi-vscode-server-0501.onrender.com/v1',
-    apiKey: 'no-key-needed',
+  // 1. Initialize MCP Client with new authenticated endpoint
+  final mcpApiKey = Platform.environment['MCP_API_KEY'];
+  if (mcpApiKey == null) {
+    print('Error: MCP_API_KEY not set. Skipping MCP tool fetching.');
+    return;
+  }
+  final mcpClient = McpClient(
+    baseUrl: 'https://search-mcp.parallel.ai/mcp',
+    apiKey: mcpApiKey,
   );
-  final client = FlutterAiClient(provider: openAiClient);
-  final messages = [
-    AiMessage.system('You are a helpful assistant.'),
-    AiMessage.user('What is the capital of France?'),
-  ];
+
+  List<AiTool> availableTools = [];
   try {
-    final response = await client.chat(messages, options: {'model': 'gpt-3.5-turbo'});
-    final textResponse = response.message.parts.whereType<AiTextContent>().map((p) => p.text).join();
-    print('AI Response: $textResponse');
-    if (response.reasoning != null) {
-      print('AI Reasoning: ${response.reasoning}');
+    print('Fetching tools from MCP server...');
+    availableTools = await mcpClient.getTools();
+    print('Successfully fetched ${availableTools.length} tools.');
+  } catch (e) {
+    print('Error fetching tools: $e');
+  }
+
+  // 2. Initialize OpenAI Client
+  final openAIApiKey = Platform.environment['OPENAI_API_KEY'];
+  if (openAIApiKey == null) {
+    print('Error: OPENAI_API_KEY not set. Skipping OpenAI example.');
+    return;
+  }
+  final openAIClient = OpenAIClient(apiKey: openAIApiKey);
+
+  // 3. Create a message to trigger a tool call
+  final messages = [
+    AiMessage.user(
+      content: 'Please generate a 2-second video of a blue square rotating.',
+    ),
+  ];
+
+  print('Sending chat request to OpenAI...');
+  try {
+    // 4. Send the request with tools
+    final AiChatResponse response = await openAIClient.createChat(
+      messages,
+      options: {
+        'model': 'gpt-4-turbo',
+        'tools': availableTools,
+      },
+    );
+
+    // 5. Process the response
+    final toolCallPart = response.message.parts.whereType<AiToolCallContent>().firstOrNull;
+    if (toolCallPart != null) {
+      print('OpenAI responded with a tool call request:');
+      final toolCall = toolCallPart.toolCalls.first;
+      print('  - Tool Name: ${toolCall.name}');
+      print('  - Arguments: ${toolCall.arguments}');
+    } else {
+      print('OpenAI responded with a message: ${response.message.textContent}');
     }
   } catch (e) {
-    print('OpenAI Example Failed: $e');
+    print('Error during OpenAI chat: $e');
   }
-}
-
-Future<void> _runOllamaStreamExample() async {
-  print('\n--- Example 2: Ollama Streamed Chat ---');
-  final ollamaClient = OllamaClient(
-    baseUrl: 'http://5.149.249.212:11434/api',
-  );
-  final client = FlutterAiClient(provider: ollamaClient);
-  final messages = [
-    AiMessage.user('Why is the sky blue? Write a short poem.'),
-  ];
-  try {
-    final stream = client.chatStream(messages, options: {'model': 'llama2'});
-    print('AI Streamed Response:');
-    await for (final chunk in stream) {
-      stdout.write(chunk.content);
-    }
-    print('');
-  } catch (e) {
-    print('Ollama Example Failed: $e');
-  }
-}
-
-Future<void> _runMcpExample() async {
-  print('\n--- Example 3: MCP Tool Discovery (Skipped) ---');
-  print('Skipping due to problematic test server.');
 }
 
 Future<void> _runAnthropicExample() async {
-  print('\n--- Example 4: Anthropic Chat Completion ---');
   final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
-    print('Skipping Anthropic example: ANTHROPIC_API_KEY is not set.');
+  if (apiKey == null) {
+    print('Error: ANTHROPIC_API_KEY not set. Skipping Anthropic example.');
     return;
   }
-  // ... (rest of the function is the same)
+  final anthropicClient = AnthropicClient(apiKey: apiKey);
+
+  final messages = [AiMessage.user(content: 'Hello from Anthropic!')];
+
+  print('Sending chat request to Anthropic...');
+  try {
+    final AiChatResponse response = await anthropicClient.createChat(
+      messages,
+      options: {'model': 'claude-3-sonnet-20240229'},
+    );
+    print('Anthropic responded with a message: ${response.message.textContent}');
+  } catch (e) {
+    print('Error during Anthropic chat: $e');
+  }
 }
 
 Future<void> _runGoogleAIExample() async {
-  print('\n--- Example 5: Google AI Chat Completion ---');
   final apiKey = Platform.environment['GOOGLE_API_KEY'];
-  if (apiKey == null || apiKey.isEmpty) {
-    print('Skipping Google AI example: GOOGLE_API_KEY is not set.');
+  if (apiKey == null) {
+    print('Error: GOOGLE_API_KEY not set. Skipping Google AI example.');
     return;
   }
-  // ... (rest of the function is the same)
-}
+  final googleClient = GoogleAIClient(apiKey: apiKey);
 
-/// Example 6: Tool Calling with a Mocked Tool and OpenAI
-Future<void> _runToolCallExample() async {
-  print('\n--- Example 6: Tool Calling Integration Test ---');
+  final messages = [AiMessage.user(content: 'Hello from Google AI!')];
+
+  print('Sending chat request to Google AI...');
   try {
-    // 1. Define a tool manually
-    print('Defining a mock weather tool...');
-    final weatherTool = AiTool(
-      name: 'get_weather',
-      description: 'Get the current weather in a given location',
-      parameters: {
-        'type': 'object',
-        'properties': {
-          'location': {'type': 'string', 'description': 'The city and state, e.g. San Francisco, CA'},
-          'unit': {'type': 'string', 'enum': ['celsius', 'fahrenheit']},
-        },
-        'required': ['location'],
-      },
-    );
-    print('Using tool: ${weatherTool.name}');
-
-    // 2. Set up the OpenAI client
-    final openAiClient = OpenAIClient(
-      baseUrl: 'https://oi-vscode-server-0501.onrender.com/v1',
-      apiKey: 'no-key-needed',
-    );
-    final client = FlutterAiClient(provider: openAiClient);
-
-    // 3. Create a prompt to trigger the tool
-    final messages = [AiMessage.user('thời tiết ở hà nội hôm nay thế nào?')];
-
-    // 4. Make the call with the tool
-    print('Calling chat model with the weather tool...');
-    final response = await client.chat(
+    final AiChatResponse response = await googleClient.createChat(
       messages,
-      options: {'model': 'gpt-3.5-turbo', 'tools': [weatherTool], 'tool_choice': 'auto'},
+      options: {'model': 'gemini-pro'},
     );
-
-    // 5. Check the response for a tool call
-    final toolCallPart = response.message.parts.whereType<AiToolCallContent>().firstOrNull;
-    if (toolCallPart != null) {
-      print('Model wants to call a tool!');
-      for (final toolCall in toolCallPart.toolCalls) {
-        print('  - Tool Name: ${toolCall.name}');
-        print('  - Tool Call ID: ${toolCall.id}');
-        print('  - Arguments: ${toolCall.arguments}');
-      }
-    } else {
-      print('Model did not return a tool call. It responded with text.');
-    }
+    print('Google AI responded with a message: ${response.message.textContent}');
   } catch (e) {
-    print('Tool Calling Example Failed: $e');
+    print('Error during Google AI chat: $e');
   }
 }
