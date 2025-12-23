@@ -1,11 +1,17 @@
+
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_ai/core/models/ai_request.dart';
 import 'package:http/http.dart' as http;
 import 'models/messages_request.dart';
 import 'models/messages_response.dart';
 import 'package:flutter_ai/core/ai_provider.dart';
 import 'package:flutter_ai/core/models/ai_message.dart';
+import 'package:flutter_ai/core/models/ai_other_responses.dart';
 import 'package:flutter_ai/core/models/ai_response.dart';
+import 'package:flutter_ai/core/models/ai_tool.dart';
+import 'package:flutter_ai/core/models/model_object.dart' as common;
+import 'package:flutter_ai/core/models/tool.dart';
 
 /// A client for interacting with the Anthropic API.
 class AnthropicClient implements AiProvider {
@@ -38,6 +44,22 @@ class AnthropicClient implements AiProvider {
       finalHeaders.addAll(headers!);
     }
     return finalHeaders;
+  }
+   @override
+  Future<AiModelsResponse> getModels() async {
+    // Note: The Anthropic API does not currently have a public endpoint for listing models.
+    // This is a hardcoded list of popular models as a workaround.
+    // This list may become outdated.
+    final models = [
+      'claude-3-opus-20240229',
+      'claude-3-sonnet-20240229',
+      'claude-3-haiku-20240307',
+      'claude-2.1',
+      'claude-2.0',
+      'claude-instant-1.2',
+    ];
+    final aiModels = models.map((id) => common.AiModel(id: id, created: 0, ownedBy: 'anthropic')).toList();
+    return AiModelsResponse(aiModels);
   }
 
   Future<AnthropicMessagesResponse> createMessage(AnthropicMessagesRequest request) async {
@@ -84,6 +106,7 @@ class AnthropicClient implements AiProvider {
   Future<AiChatResponse> createChat(List<AiMessage> messages, {Map<String, dynamic> options = const {}}) async {
     final systemPrompt = messages.firstWhere((m) => m.role == AiMessageRole.system, orElse: () => AiMessage.system('')).parts.whereType<AiTextContent>().map((p) => p.text).join();
     final userMessages = messages.where((m) => m.role != AiMessageRole.system).toList();
+    final tools = options['tools'] as List<AiTool>?;
 
     final request = AnthropicMessagesRequest(
       model: options['model'] ?? 'claude-3-opus-20240229',
@@ -91,13 +114,33 @@ class AnthropicClient implements AiProvider {
       system: systemPrompt.isNotEmpty ? systemPrompt : null,
       maxTokens: options['maxTokens'] ?? 1024,
       temperature: options['temperature'],
+      tools: tools?.map((t) => t.toJson()).toList(),
     );
     final response = await createMessage(request);
+
+    final parts = <AiContentPart>[];
     final textContent = response.content.where((c) => c['type'] == 'text').map((c) => c['text']).join();
+    if (textContent.isNotEmpty) {
+      parts.add(AiTextContent(textContent));
+    }
+
+    final toolCalls = response.content
+        .where((c) => c['type'] == 'tool_use')
+        .map((c) => AiToolCall(
+              id: c['id'],
+              name: c['name'],
+              arguments: jsonEncode(c['input']),
+            ))
+        .toList();
+
+    if (toolCalls.isNotEmpty) {
+      parts.add(AiToolCallContent(toolCalls));
+    }
+
     return AiChatResponse(
       id: response.id,
       model: response.model,
-      message: AiMessage.assistant(textContent),
+      message: AiMessage(role: AiMessageRole.assistant, parts: parts),
     );
   }
 
@@ -117,5 +160,35 @@ class AnthropicClient implements AiProvider {
     return createMessageStream(request)
         .where((event) => event.textDelta != null)
         .map((event) => AiChatResponseChunk(content: event.textDelta));
+  }
+
+  @override
+  Future<AiEmbeddingResponse> getEmbeddings(AiEmbeddingRequest request) {
+    throw UnsupportedError('Anthropic does not support embeddings.');
+  }
+
+  @override
+  Future<AiImageResponse> createImage(AiImageRequest request) {
+    throw UnsupportedError('Anthropic does not support image generation.');
+  }
+
+  @override
+  Future<AiVideoResponse> createVideo(AiVideoRequest request) {
+    throw UnsupportedError('Anthropic does not support video generation.');
+  }
+
+  @override
+  Future<AiSpeechResponse> createSpeech(AiSpeechRequest request) {
+    throw UnsupportedError('Anthropic does not support speech generation.');
+  }
+
+  @override
+  Future<AiTranscriptionResponse> createTranscription(AiTranscriptionRequest request) {
+    throw UnsupportedError('Anthropic does not support transcription.');
+  }
+
+  @override
+  Future<AiImageResponse> editImage(AiImageEditRequest request) {
+    throw UnsupportedError('Anthropic does not support image editing.');
   }
 }

@@ -1,11 +1,18 @@
+
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_ai/core/models/ai_request.dart';
 import 'package:http/http.dart' as http;
 import 'models/generate_content_request.dart';
 import 'models/generate_content_response.dart';
+import 'models/list_models_response.dart';
 import 'package:flutter_ai/core/ai_provider.dart';
 import 'package:flutter_ai/core/models/ai_message.dart';
+import 'package:flutter_ai/core/models/ai_other_responses.dart';
 import 'package:flutter_ai/core/models/ai_response.dart';
+import 'package:flutter_ai/core/models/ai_tool.dart';
+import 'package:flutter_ai/core/models/model_object.dart' as common;
+import 'package:flutter_ai/core/models/tool.dart';
 
 /// A client for interacting with the Google AI (Gemini) API.
 class GoogleAIClient implements AiProvider {
@@ -36,7 +43,24 @@ class GoogleAIClient implements AiProvider {
   }
 
   String _buildUrl(String model, String task) {
+     if (model.startsWith('models/')) {
+      return '$baseUrl/$model:$task';
+    }
     return '$baseUrl/models/$model:$task';
+  }
+
+  @override
+  Future<AiModelsResponse> getModels() async {
+    final url = '$baseUrl/models';
+    final response = await _httpClient.get(Uri.parse(url), headers: _buildHeaders());
+    if (response.statusCode == 200) {
+      final data = json.decode(utf8.decode(response.bodyBytes));
+      final models = (data['models'] as List).map((m) => GoogleAIModel.fromJson(m)).toList();
+      final aiModels = models.map((m) => common.AiModel(id: m.name, created: 0, ownedBy: 'google')).toList();
+      return AiModelsResponse(aiModels);
+    } else {
+      throw Exception('Failed to load models: ${response.statusCode} ${response.body}');
+    }
   }
 
   Future<GoogleAIGenerateContentResponse> generateContent({required String model, required GoogleAIGenerateContentRequest request}) async {
@@ -54,20 +78,27 @@ class GoogleAIClient implements AiProvider {
     final controller = StreamController<GoogleAIGenerateContentResponse>();
     final httpRequest = http.Request('POST', Uri.parse(url))..headers.addAll(_buildHeaders())..body = json.encode(request.toJson());
     _httpClient.send(httpRequest).then((streamedResponse) {
+      String buffer = '';
       streamedResponse.stream.transform(utf8.decoder).listen((data) {
-        try {
-          final cleanedData = data.trim().replaceAll('[', '').replaceAll(']', '');
-          final parts = cleanedData.split('},').where((s) => s.isNotEmpty).toList();
-          for (int i = 0; i < parts.length; i++) {
-            var part = parts[i];
-            if (i < parts.length - 1) {
-              part += '}';
+        buffer += data;
+        // This regex looks for a complete JSON object.
+        final regex = RegExp(r'\{.*?\}', dotAll: true);
+        final matches = regex.allMatches(buffer);
+
+        int offset = 0;
+        for (final match in matches) {
+          final jsonString = match.group(0);
+          if (jsonString != null) {
+            try {
+              controller.add(GoogleAIGenerateContentResponse.fromJson(json.decode(jsonString)));
+              offset = match.end;
+            } catch (e) {
+              // In case of an incomplete JSON object, we wait for more data.
             }
-            controller.add(GoogleAIGenerateContentResponse.fromJson(json.decode(part)));
           }
-        } catch (e) {
-          controller.addError(Exception('Error parsing stream chunk: $data'));
         }
+        buffer = buffer.substring(offset);
+
       }, onError: controller.addError, onDone: controller.close);
     }).catchError(controller.addError);
     return controller.stream;
@@ -80,12 +111,36 @@ class GoogleAIClient implements AiProvider {
   @override
   Future<AiChatResponse> createChat(List<AiMessage> messages, {Map<String, dynamic> options = const {}}) async {
     final model = options['model'] ?? 'gemini-pro';
-    final request = GoogleAIGenerateContentRequest(contents: messages);
+    final tools = options['tools'] as List<AiTool>?;
+
+    final request = GoogleAIGenerateContentRequest(
+      contents: messages,
+      tools: tools?.map((t) => t.toJson()).toList(),
+    );
     final response = await generateContent(model: model, request: request);
-    final textContent = response.candidates.first.content.parts.map((p) => p.text).where((t) => t != null).join();
+
+    final parts = <AiContentPart>[];
+    final textContent = response.candidates.first.content.parts.where((p) => p.text != null).map((p) => p.text).join();
+    if (textContent.isNotEmpty) {
+      parts.add(AiTextContent(textContent));
+    }
+
+    final toolCalls = response.candidates.first.content.parts
+        .where((p) => p.functionCall != null)
+        .map((p) => AiToolCall(
+              id: p.functionCall!['name'],
+              name: p.functionCall!['name'],
+              arguments: jsonEncode(p.functionCall!['args']),
+            ))
+        .toList();
+
+    if (toolCalls.isNotEmpty) {
+      parts.add(AiToolCallContent(toolCalls));
+    }
+
     return AiChatResponse(
       model: model,
-      message: AiMessage.assistant(textContent),
+      message: AiMessage(role: AiMessageRole.assistant, parts: parts),
     );
   }
 
@@ -100,5 +155,35 @@ class GoogleAIClient implements AiProvider {
         content: textContent,
       );
     });
+  }
+
+  @override
+  Future<AiEmbeddingResponse> getEmbeddings(AiEmbeddingRequest request) {
+    throw UnsupportedError('Google AI does not support embeddings via this client.');
+  }
+
+  @override
+  Future<AiImageResponse> createImage(AiImageRequest request) {
+    throw UnsupportedError('Google AI does not support image generation via this client.');
+  }
+
+  @override
+  Future<AiVideoResponse> createVideo(AiVideoRequest request) {
+    throw UnsupportedError('Google AI does not support video generation via this client.');
+  }
+
+  @override
+  Future<AiSpeechResponse> createSpeech(AiSpeechRequest request) {
+    throw UnsupportedError('Google AI does not support speech generation via this client.');
+  }
+
+  @override
+  Future<AiTranscriptionResponse> createTranscription(AiTranscriptionRequest request) {
+    throw UnsupportedError('Google AI does not support transcription via this client.');
+  }
+
+  @override
+  Future<AiImageResponse> editImage(AiImageEditRequest request) {
+    throw UnsupportedError('Google AI does not support image editing via this client.');
   }
 }

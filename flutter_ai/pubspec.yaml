@@ -8,6 +8,8 @@ environment:
 
 dependencies:
   http: ^1.1.0
+  oauth2_client: ^3.1.0
+  pkce: ^1.1.0
 
 dev_dependencies:
   lints: ^2.0.0

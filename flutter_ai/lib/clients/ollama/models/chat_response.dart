@@ -20,10 +20,15 @@ class OllamaChatResponse {
 class OllamaMessage {
   final String role;
   final String content;
+  final List<Map<String, dynamic>>? toolCalls;
 
-  OllamaMessage({required this.role, required this.content});
+  OllamaMessage({required this.role, required this.content, this.toolCalls});
 
   factory OllamaMessage.fromJson(Map<String, dynamic> json) {
-    return OllamaMessage(role: json['role'], content: json['content']);
+    return OllamaMessage(
+      role: json['role'],
+      content: json['content'],
+      toolCalls: json['tool_calls'] != null ? List<Map<String, dynamic>>.from(json['tool_calls']) : null,
+    );
   }
 }

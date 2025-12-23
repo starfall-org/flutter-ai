@@ -5,11 +5,13 @@ class OllamaChatRequest {
   final String model;
   final List<AiMessage> messages;
   final bool stream;
+  final List<Map<String, dynamic>>? tools;
 
   OllamaChatRequest({
     required this.model,
     required this.messages,
     this.stream = false,
+    this.tools,
   });
 
   Map<String, dynamic> toJson() {
@@ -17,6 +19,7 @@ class OllamaChatRequest {
       'model': model,
       'messages': messages.map(_messageToJson).toList(),
       'stream': stream,
+      if (tools != null) 'tools': tools,
     };
   }
 

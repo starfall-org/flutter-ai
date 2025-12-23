@@ -38,3 +38,43 @@ class AiAudioResponse {
 
   const AiAudioResponse(this.data);
 }
+
+/// Represents the response from a request to list models.
+class AiModelsResponse {
+  /// The list of models.
+  final List<AiModel> models;
+
+  const AiModelsResponse(this.models);
+}
+
+/// Represents a single generated video.
+class AiVideo {
+  /// The URL of the generated video.
+  final String url;
+
+  const AiVideo(this.url);
+}
+
+/// Represents the output of a video generation request.
+class AiVideoResponse {
+  /// The list of generated videos.
+  final List<AiVideo> videos;
+
+  const AiVideoResponse(this.videos);
+}
+
+/// Represents the output of a speech generation request.
+class AiSpeechResponse {
+  /// The generated audio data.
+  final List<int> bytes;
+
+  const AiSpeechResponse(this.bytes);
+}
+
+/// Represents the output of a transcription request.
+class AiTranscriptionResponse {
+  /// The transcribed text.
+  final String text;
+
+  const AiTranscriptionResponse(this.text);
+}

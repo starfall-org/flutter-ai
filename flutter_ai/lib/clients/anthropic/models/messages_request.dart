@@ -8,6 +8,7 @@ class AnthropicMessagesRequest {
   final int maxTokens;
   final bool stream;
   final double? temperature;
+  final List<Map<String, dynamic>>? tools;
 
   AnthropicMessagesRequest({
     required this.model,
@@ -16,6 +17,7 @@ class AnthropicMessagesRequest {
     required this.maxTokens,
     this.stream = false,
     this.temperature,
+    this.tools,
   });
 
   Map<String, dynamic> toJson() {
@@ -26,6 +28,7 @@ class AnthropicMessagesRequest {
       'max_tokens': maxTokens,
       'stream': stream,
       if (temperature != null) 'temperature': temperature,
+      if (tools != null) 'tools': tools,
     };
   }
 

@@ -33,8 +33,12 @@ class GoogleAIContent {
 
 class GoogleAIPart {
   final String? text;
-  GoogleAIPart({this.text});
+  final Map<String, dynamic>? functionCall;
+  GoogleAIPart({this.text, this.functionCall});
   factory GoogleAIPart.fromJson(Map<String, dynamic> json) {
-    return GoogleAIPart(text: json['text']);
+    return GoogleAIPart(
+      text: json['text'],
+      functionCall: json['functionCall'],
+    );
   }
 }
