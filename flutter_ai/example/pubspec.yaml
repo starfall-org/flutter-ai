@@ -1,0 +1,10 @@
+name: flutter_ai_example
+description: An example application for the flutter_ai package.
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter_ai:
+    path: ../

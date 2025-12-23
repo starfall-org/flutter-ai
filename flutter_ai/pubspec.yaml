@@ -1,0 +1,16 @@
+name: flutter_ai
+description: A unified Dart package for interacting with various AI APIs like OpenAI, Anthropic, Google AI, and Ollama.
+version: 0.0.1
+homepage:
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.1.0
+  oauth2_client: ^3.1.0
+  pkce: ^1.1.0
+
+dev_dependencies:
+  lints: ^2.0.0
+  test: ^1.21.0
