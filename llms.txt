@@ -1,0 +1,89 @@
+# Flutter AI Package Technical Specification for LLMs
+
+## 1. Package Overview
+
+- **Name:** `flutter_ai`
+- **Description:** A unified Dart package for interacting with multiple generative AI APIs. It provides a consistent interface for models from OpenAI, Anthropic, Google AI, and Ollama.
+- **Key Feature:** A single `FlutterAiClient` abstracts the complexities of individual provider APIs, using a standardized set of request and response models.
+
+## 2. Core Components
+
+### 2.1. `FlutterAiClient`
+
+- **Type:** Class, implements `AiProvider`
+- **Purpose:** The main entry point for the package. It delegates calls to a specific provider client.
+- **Constructors:**
+  - `FlutterAiClient({required AiProvider provider, McpClient? mcpClient})`: The default constructor.
+  - `FlutterAiClient.openai({String? apiKey, McpClient? mcpClient})`: Factory for creating an OpenAI client. Reads `OPENAI_API_KEY` from environment variables if `apiKey` is null.
+  - `FlutterAiClient.anthropic({String? apiKey, McpClient? mcpClient})`: Factory for an Anthropic client. Reads `ANTHROPIC_API_KEY`.
+  - `FlutterAiClient.google({String? apiKey, McpClient? mcpClient})`: Factory for a Google AI (Gemini) client. Reads `GOOGLE_API_KEY`.
+  - `FlutterAiClient.ollama({McpClient? mcpClient})`: Factory for an Ollama client.
+- **Methods:**
+  - `Future<AiModelsResponse> getModels()`: Fetches available models from the provider.
+  - `Future<AiChatResponse> createChat(List<AiMessage> messages, {Map<String, dynamic> options})`: Sends a non-streaming chat request.
+  - `Stream<AiChatResponseChunk> createChatStream(List<AiMessage> messages, {Map<String, dynamic> options})`: Sends a streaming chat request.
+  - `Future<AiEmbeddingResponse> getEmbeddings(AiEmbeddingRequest request)`: Generates vector embeddings.
+  - `Future<AiImageResponse> createImage(AiImageRequest request)`: Generates an image.
+  - `Future<AiVideoResponse> createVideo(AiVideoRequest request)`: Generates a video.
+  - `Future<AiSpeechResponse> createSpeech(AiSpeechRequest request)`: Generates speech from text.
+  - `Future<AiTranscriptionResponse> createTranscription(AiTranscriptionRequest request)`: Transcribes audio to text.
+  - `Future<AiImageResponse> editImage(AiImageEditRequest request)`: Edits an existing image.
+
+### 2.2. `AiProvider`
+
+- **Type:** Abstract Class (Interface)
+- **Purpose:** Defines the contract that all provider-specific clients must implement. This ensures that the `FlutterAiClient` can interact with them uniformly.
+
+## 3. Provider-Specific Clients
+
+These clients can be used directly for provider-specific functionality.
+
+-   **`OpenAIClient`**: Implements `AiProvider` for the OpenAI API.
+-   **`AnthropicClient`**: Implements `AiProvider` for the Anthropic API.
+-   **`GoogleAIClient`**: Implements `AiProvider` for the Google AI (Gemini) API.
+-   **`OllamaClient`**: Implements `AiProvider` for the Ollama API.
+
+## 4. Data Models
+
+### 4.1. Chat
+
+-   **`AiMessage`**: Represents a single message in a conversation.
+    -   `AiMessage.system({String content})`
+    -   `AiMessage.user({String content})`
+    -   `AiMessage.assistant({String content})`
+-   **`AiChatResponse`**: The response object for a non-streaming chat request.
+    -   `List<AiChatChoice> choices`: A list of possible responses.
+-   **`AiChatChoice`**: A single chat response choice.
+    -   `AiMessage message`: The assistant's message.
+-   **`AiChatResponseChunk`**: A chunk of data from a streaming chat response.
+    -   `List<AiChatChoiceChunk> choices`: A list of delta choices.
+-   **`AiChatChoiceChunk`**: A single delta in a stream.
+    -   `AiMessageDelta delta`: The content delta.
+
+### 4.2. Embeddings
+
+-   **`AiEmbeddingRequest`**: The request to generate embeddings.
+    -   `List<String> inputs`: The texts to embed.
+    -   `String model`: The embedding model to use.
+-   **`AiEmbeddingResponse`**: The response containing the embeddings.
+    -   `List<AiEmbedding> embeddings`: The list of generated embeddings.
+-   **`AiEmbedding`**: A single embedding vector.
+    -   `List<double> embedding`: The vector.
+
+### 4.3. Image Generation
+
+-   **`AiImageRequest`**: The request to generate an image.
+    -   `String prompt`: The text prompt.
+    -   `int n`: The number of images to generate.
+    -   `String size`: The image dimensions.
+-   **`AiImageResponse`**: The response containing the image data.
+    -   `List<AiImageData> data`: The list of generated images.
+-   **`AiImageData`**: Represents a single generated image.
+    -   `String url`: The URL of the image.
+    -   `String b64Json`: The base64-encoded image data.
+
+## 5. Model Context Protocol (MCP)
+
+-   **`McpClient`**: A client for interacting with an MCP server.
+-   **Purpose:** Allows the AI model to discover and call external tools and services.
+-   **Usage:** It can be passed to the `FlutterAiClient` during initialization to enable tool-calling capabilities. It handles the OAuth 2.1 authorization code flow for secure tool access.
